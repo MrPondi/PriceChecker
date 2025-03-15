@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools>=65.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "price_checker"
+version = "0.1.0"
+description = "Tool for tracking product prices across websites"
+authors = [
+    {name = "Karol Parzonka", email = "me@pondi.dev"}
+]
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Typing :: Typed",
+]
+dependencies = [
+    "aiohttp>=3.8",
+    "beautifulsoup4>=4.11",
+    "lxml>=4.9",
+    "databases[sqlite]>=0.7",
+    "sqlalchemy>=2.0",
+    "pydantic>=2.0",
+    "tldextract>=3.4",
+    "python-dotenv>=1.0.0",
+    "aiolimiter>=1.0",
+    "typing-extensions>=4.0; python_version<'3.11'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.3",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.1",
+    "black>=23.3",
+    "ruff>=0.0.280",
+    "mypy>=1.3",
+    "types-beautifulsoup4",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/MrPondi/price-checker"
+"Bug Tracker" = "https://github.com/MrPondi/price-checker/issues"
+
+[project.scripts]
+price-checker = "src.cli:cli"
+
+[tool.setuptools]
+packages = {find = {}}
+include-package-data = true
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+include = '\.pyi?$'
+
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+select = [
+    "E", "F", "W",  # Basic codes
+    "I",  # isort
+    "UP",  # pyupgrade
+    "PL",  # pylint
+    "RET",  # return
+    "ANN",  # annotations
+]
+ignore = ["PLR2004"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+show_error_codes = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+disable_error_code = ["no-untyped-def"]
