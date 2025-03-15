@@ -41,24 +41,28 @@ class BaseFetcher:
     ) -> ClientResponse:
         domain = tldextract.extract(url).registered_domain
 
-        # Use rate limiter to control request rate
-        await self.rate_limiter.acquire(domain)
+        for attempt in range(self.retries):
+            # Use rate limiter to control request rate
+            await self.rate_limiter.acquire(domain)
 
-        response = None
-        success = False
+            success = False
 
-        try:
-            response = await self.session.get(url, **kwargs)
-            success = 200 <= response.status < 300
+            try:
+                response = await self.session.get(url, **kwargs)
+                success = 200 <= response.status < 300
+                if success:
+                    return response
 
-            if response.status == 429:  # Too Many Requests
-                logger.warning(f"Rate limited by {domain}")
-                success = False
+                if response.status == 429:  # Too Many Requests
+                    logger.warning(f"Rate limited by {domain}")
 
-            return response
-        finally:
-            # Update rate limiter with request result
-            self.rate_limiter.update_rate(domain, success)
+                await self._handle_error_response(response, attempt)
+            except Exception as e:
+                await self._handle_request_error(e, attempt, url)
+            finally:
+                # Update rate limiter with request result
+                self.rate_limiter.update_rate(domain, success)
+        raise FetcherError(f"Failed after {self.retries} retries for {url}")
 
     async def _handle_error_response(
         self, response: ClientResponse, attempt: int
@@ -148,9 +152,7 @@ class ScrapeFetcher(BaseFetcher):
         except FetcherError as e:
             return self._error_response(product_name, url, str(e))
 
-    def _parse_html(
-        self, html: str, product_name: str, url: str
-    ) -> Response:
+    def _parse_html(self, html: str, product_name: str, url: str) -> Response:
         """Parse HTML and extract prices using configured selectors"""
         soup = BeautifulSoup(html, "lxml")
         price_data = {}
@@ -185,7 +187,7 @@ class ScrapeFetcher(BaseFetcher):
             "product_name": product_name,
             "url": url,
             "source": self.site.category,
-            "data": price_data
+            "data": price_data,
         }
 
     def _extract_price(

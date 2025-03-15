@@ -17,12 +17,16 @@ class EnvVariables(BaseModel):
 
 
 class Selectors(BaseModel):
-    price: Optional[str] = None
+    price: str
     regular_price: Optional[str] = None
     sale_price: Optional[str] = None
 
-    def get(self, key: str, default: str = "price") -> str:
-        return getattr(self, key, default)
+    def get(self, key: str, default: Optional[str] = None) -> str:
+        if default:
+            if attr := getattr(self, key, default):
+                return attr
+            return default
+        return getattr(self, key)
 
 
 class Site_Rules(BaseModel):
@@ -81,8 +85,8 @@ class InputFile(BaseModel):
                 continue
 
         # Get disabled domains
-        disabled_domains = {
-            site.root_domain for site in validated_sites if site.disabled
+        allowed_domains = {
+            site.root_domain for site in validated_sites if not site.disabled
         }
 
         # Process products with filtering
@@ -91,7 +95,7 @@ class InputFile(BaseModel):
             filtered_urls = [
                 url
                 for url in product_data["urls"]
-                if tldextract.extract(url).registered_domain not in disabled_domains
+                if tldextract.extract(url).registered_domain in allowed_domains
             ]
 
             if filtered_urls:

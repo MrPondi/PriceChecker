@@ -85,3 +85,6 @@ strict = true
 show_error_codes = true
 enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
 disable_error_code = ["no-untyped-def"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

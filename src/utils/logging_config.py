@@ -4,7 +4,6 @@ import logging
 import logging.handlers
 import os
 from datetime import datetime
-from pathlib import Path
 from typing import Any, cast
 
 
@@ -34,14 +33,14 @@ class CustomJsonFormatter(logging.Formatter):
 class StructuredLoggerProtocol(logging.Logger):
     """Protocol for a logger with a with_context method"""
 
-    def with_context(self, **context: dict) -> logging.LoggerAdapter: ...
+    def with_context(self, **context: Any) -> logging.LoggerAdapter: ...  # noqa: ANN401
 
 
 def setup_logging(log_dir: str="logs") -> logging.Logger:
     """Configure application logging with rotation and structured logs"""
 
     # Create log directory if it doesn't exist
-    Path(log_dir).mkdir(exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
 
     # Console handler for INFO and above
     console_handler = logging.StreamHandler()
@@ -85,7 +84,7 @@ def setup_logging(log_dir: str="logs") -> logging.Logger:
     return root_logger
 
 
-def get_logger(name: str) -> logging.Logger:
+def get_logger(name: str) -> StructuredLoggerProtocol:
     """Get a logger with a `with_context` method for structured logging."""
     logger = logging.getLogger(name)
 
