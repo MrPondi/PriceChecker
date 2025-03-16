@@ -1,8 +1,8 @@
 import json
-import os
 import tempfile
 import time
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -19,8 +19,7 @@ def temp_config_file() -> Iterator[str]:
     yield tmp_name
 
     # Clean up
-    if os.path.exists(tmp_name):
-        os.unlink(tmp_name)
+    Path(tmp_name).unlink(missing_ok=True)
 
 
 @pytest.fixture

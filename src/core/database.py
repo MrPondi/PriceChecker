@@ -295,8 +295,8 @@ class DatabaseManager:
             if current_price and current_price < target_price:
                 domain = tldextract.extract(url).registered_domain
                 message = (
-                    f"{product}: {domain} has lower price ({current_price}) "
-                    f"than {target_site} ({target_price})"
+                    f"{product}: {domain} has lower price ({current_price:.2f}) "
+                    f"than {target_site} ({target_price:.2f})"
                 )
                 await notification_mgr.send_alert(session, message)
 

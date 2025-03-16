@@ -30,9 +30,9 @@ TIMEOUT = ClientTimeout(total=30, sock_connect=15)
 
 
 async def main(
-    config_path: str, target_site: str, database_url: str, notification_url: str
+    config_path: Path, target_site: str, database_url: str, notification_url: str
 ) -> None:
-    input_data = InputFile.from_json(Path(config_path))
+    input_data = InputFile.from_json(config_path)
     site_mapping = create_site_mapping(input_data.sites)
     notification_mgr = NotificationManager(notification_url)
     database_mgr = DatabaseManager(database_url)
@@ -71,7 +71,7 @@ async def main(
                     continue
                 valid_results.append(result)
 
-            save_results(valid_results)
+            save_results(valid_results, config_path.parent)
             changed_urls = await database_mgr.update_price_database(valid_results)
 
             if changed_urls:
@@ -132,9 +132,9 @@ async def create_task(
         return await fetcher.fetch(url=url, product_name=product_name)
 
 
-def save_results(results: list[dict]) -> None:
+def save_results(results: list[dict], dir_path: Path) -> None:
     """Save results with incremental JSON writing"""
-    with open("data/output.json", "w") as outfile:
+    with open(dir_path / "output.json", "w") as outfile:
         json.dump(results, outfile, indent=4, ensure_ascii=False)
 
 
@@ -174,7 +174,7 @@ def cli() -> None:
 
     asyncio.run(
         main(
-            config_path=args.config,
+            config_path=Path(args.config),
             target_site=target_site,
             database_url=database_url,
             notification_url=notification_url,

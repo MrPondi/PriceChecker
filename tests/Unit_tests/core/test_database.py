@@ -20,18 +20,23 @@ logger = setup_logging()
 def test_db_url() -> Iterable[str]:
     """Return a test database URL"""
     # Create a temporary file
-    db_file = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    db_path = db_file.name
-    db_file.close()  # Close the file so SQLite can use it
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+        tmp_name = tmp.name
 
     # Yield the file path to the tests
-    yield f"sqlite:///{db_path}"
+    yield f"sqlite:///{tmp_name}"
 
 
 @pytest_asyncio.fixture
 async def db_manager(test_db_url: str) -> AsyncGenerator[DatabaseManager]:
     """Create and initialize a test DatabaseManager instance"""
     manager = DatabaseManager(database_url=test_db_url)
+
+    # Replace caches with non-persistent versions
+    manager.price_cache = AsyncLRUCache(max_size=200, ttl=600, cache_name=None)
+    manager.competitor_urls_cache = AsyncLRUCache(
+        max_size=100, ttl=1800, cache_name=None
+    )
     await manager.initialize()
     yield manager
 
