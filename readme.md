@@ -14,7 +14,7 @@ An asynchronous Python application for tracking product prices across multiple w
 
 ### Prerequisites
 
-- Python 3.9+
+- Python 3.11+
 - pip
 
 ### Installation

@@ -1,7 +1,8 @@
-version: '3.8'
+---
 
 services:
   price-checker:
+    container_name: price-checker
     build:
       context: .
       dockerfile: Dockerfile

@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -19,9 +19,11 @@ RUN pip install --no-cache-dir -e .
 # Create required directories
 RUN mkdir -p /app/data /app/logs
 
-# Create a script to run the price checker with cron
+# Create a script to run the price checker with full path
 RUN echo '#!/bin/sh\n\
-cd /app && price-checker\n' > /app/run_price_checker.sh && \
+    cd /app\n\
+    export PATH=/usr/local/bin:$PATH\n\
+    python -m src.cli\n' > /app/run_price_checker.sh && \
     chmod +x /app/run_price_checker.sh
 
 # Install cron
@@ -36,9 +38,11 @@ RUN echo "*/15 * * * * /app/run_price_checker.sh >> /app/logs/cron.log 2>&1" > /
 
 # Create entrypoint script
 RUN echo '#!/bin/sh\n\
-touch /app/logs/cron.log\n\
-cron\n\
-tail -f /app/logs/cron.log\n' > /app/entrypoint.sh && \
+    touch /app/logs/cron.log\n\
+    cron\n\
+    # Run once at startup\n\
+    /app/run_price_checker.sh >> /app/logs/startup.log 2>&1\n\
+    tail -f /app/logs/cron.log\n' > /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]
