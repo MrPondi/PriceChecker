@@ -42,7 +42,7 @@ class ConnectionPool:
                 db = Database(database_url)
                 await db.connect()
                 cls._instances[database_url] = db
-                logger.info(f"Created new database connection for {database_url}")
+                logger.debug(f"Created new database connection for {database_url}")
 
             return cls._instances[database_url]
 
@@ -50,7 +50,7 @@ class ConnectionPool:
     async def close_all(cls) -> None:
         """Close all database connections"""
         for url, db in cls._instances.items():
-            logger.info(f"Closing database connection for {url}")
+            logger.debug(f"Closing database connection for {url}")
             await db.disconnect()
 
         cls._instances.clear()

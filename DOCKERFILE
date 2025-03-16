@@ -1,0 +1,44 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install necessary system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    libffi-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy project files
+COPY . /app/
+
+# Install the package in development mode
+RUN pip install --no-cache-dir -e .
+
+# Create required directories
+RUN mkdir -p /app/data /app/logs
+
+# Create a script to run the price checker with cron
+RUN echo '#!/bin/sh\n\
+cd /app && price-checker\n' > /app/run_price_checker.sh && \
+    chmod +x /app/run_price_checker.sh
+
+# Install cron
+RUN apt-get update && apt-get install -y cron \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up cron job to run every 15 minutes
+RUN echo "*/15 * * * * /app/run_price_checker.sh >> /app/logs/cron.log 2>&1" > /etc/cron.d/price-checker-cron && \
+    chmod 0644 /etc/cron.d/price-checker-cron && \
+    crontab /etc/cron.d/price-checker-cron
+
+# Create entrypoint script
+RUN echo '#!/bin/sh\n\
+touch /app/logs/cron.log\n\
+cron\n\
+tail -f /app/logs/cron.log\n' > /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]

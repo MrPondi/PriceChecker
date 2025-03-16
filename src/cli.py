@@ -84,7 +84,6 @@ async def main(
         # Save rate limits to file
         rate_limiter = BaseFetcher.get_rate_limiter()
         await rate_limiter.save_configs()
-        logger.info("Rate limits saved to file")
 
         # Cancel any ongoing cache cleanup tasks
         if hasattr(database_mgr, "price_cache") and hasattr(

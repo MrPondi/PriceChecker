@@ -243,8 +243,12 @@ class ScrapeFetcher(BaseFetcher):
 
         # Apply element selector rules
         if self.site.site_rules.element_selector is not None:
-            for selector, should_skip in self.site.site_rules.element_selector.items():
-                if element.find(class_=selector) is not None and should_skip:
+            for (
+                selector,
+                should_include,
+            ) in self.site.site_rules.element_selector.items():
+                contains = element.find(class_=selector) is not None
+                if contains != should_include:
                     return True
 
         # Default: don't skip

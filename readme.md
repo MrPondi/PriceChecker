@@ -81,7 +81,7 @@ The application uses a JSON configuration file (`data/input.json`) with the foll
           "sold out": false
         },
         "element_selector": {
-          "out-of-stock": true
+          "out-of-stock": false
         }
       }
     }

@@ -67,7 +67,6 @@ class DomainRateLimiter:
     async def save_configs(self) -> None:
         """Save current rate limit configurations to file"""
         if not self.configs_modified:
-            logger.info("Ratelimit config not modified")
             return
 
         try:
@@ -149,7 +148,7 @@ class DomainRateLimiter:
                 self.limiters[domain] = AsyncLimiter(new_rate, current_period)
                 self.domain_configs[domain] = (new_rate, current_period)
                 self.configs_modified = True
-                logger.warning(
+                logger.debug(
                     f"Reducing rate for {domain} to {new_rate} req/{current_period}s"
                 )
         elif success_rate > 0.95 and current_rate < 10:
@@ -160,7 +159,7 @@ class DomainRateLimiter:
                 self.limiters[domain] = AsyncLimiter(new_rate, current_period)
                 self.domain_configs[domain] = (new_rate, current_period)
                 self.configs_modified = True
-                logger.info(
+                logger.debug(
                     f"Increasing rate for {domain} to {new_rate} req/{current_period}s"
                 )
 

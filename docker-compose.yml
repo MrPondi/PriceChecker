@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  price-checker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - DATABASE_URL=sqlite:///data/product_prices.db
+      - TARGET_SITE=${TARGET_SITE}
+      - NOTIFICATION_URL=${NOTIFICATION_URL}
+    restart: unless-stopped

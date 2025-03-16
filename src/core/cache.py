@@ -273,7 +273,6 @@ def async_cached(
                 return cast(T, cached_result)
 
             # Execute function and cache result
-            logger.debug(f"Cache miss for {func.__name__}")
             result = await func(*args, **kwargs)  # type: ignore
             await cache.set(cache_key, result)
             return result
