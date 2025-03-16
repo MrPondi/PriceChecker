@@ -2,6 +2,7 @@ import asyncio
 import os
 import tempfile
 from collections.abc import AsyncGenerator, Iterable
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -19,7 +20,7 @@ logger = setup_logging()
 def test_db_url() -> Iterable[str]:
     """Return a test database URL"""
     # Create a temporary file
-    db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+    db_file = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     db_path = db_file.name
     db_file.close()  # Close the file so SQLite can use it
 
@@ -37,8 +38,7 @@ async def db_manager(test_db_url: str) -> AsyncGenerator[DatabaseManager]:
     # Clean up
     await ConnectionPool.close_all()
     test_db_path = test_db_url.replace("sqlite:///", "")
-    if os.path.exists(test_db_path):
-        os.remove(test_db_path)
+    Path(test_db_path).unlink(missing_ok=True)
 
 
 @pytest.mark.asyncio
@@ -79,186 +79,184 @@ async def test_insert_price_data(db_manager: DatabaseManager) -> None:
     assert result[db_manager.price_history.c.sale_price] == 99.99
 
 
-@pytest.mark.asyncio
-async def test_update_price_database_changed_price(db_manager: DatabaseManager) -> None:
-    """Test updating prices when price has changed"""
-    # Insert initial data
-    initial_data = {
-        "product_name": "Test Product",
-        "url": "https://example.com/product",
-        "price": 99.99,
-        "regular_price": 129.99,
-        "sale_price": 99.99,
-    }
-    await db_manager.insert_price_data(initial_data)
-
-    await asyncio.sleep(1.5)
-
-    # Create new entry with changed price
-    entries = [
-        {
+class TestUpdatePriceDatabase:
+    @pytest.mark.asyncio
+    async def test_changed_price(self, db_manager: DatabaseManager) -> None:
+        """Test updating prices when price has changed"""
+        # Insert initial data
+        initial_data = {
             "product_name": "Test Product",
             "url": "https://example.com/product",
-            "data": {"price": 89.99, "regular_price": 129.99, "sale_price": 89.99},
+            "price": 99.99,
+            "regular_price": 129.99,
+            "sale_price": 99.99,
         }
-    ]
+        await db_manager.insert_price_data(initial_data)
 
-    changed_urls = await db_manager.update_price_database(entries)
+        await asyncio.sleep(1.5)
 
-    # Check that the URL was reported as changed
-    assert len(changed_urls) == 1
-    assert ("Test Product", "https://example.com/product") in changed_urls
+        # Create new entry with changed price
+        entries = [
+            {
+                "product_name": "Test Product",
+                "url": "https://example.com/product",
+                "data": {"price": 89.99, "regular_price": 129.99, "sale_price": 89.99},
+            }
+        ]
 
-    # Verify the new price is in the database
-    price = await db_manager.get_latest_price(
-        "Test Product", "https://example.com/product"
-    )
-    assert price == 89.99
+        changed_urls = await db_manager.update_price_database(entries)
 
+        # Check that the URL was reported as changed
+        assert len(changed_urls) == 1
+        assert ("Test Product", "https://example.com/product") in changed_urls
 
-@pytest.mark.asyncio
-async def test_update_price_database_unchanged_price(
-    db_manager: DatabaseManager,
-) -> None:
-    """Test updating prices when price hasn't changed"""
-    # Insert initial data
-    initial_data = {
-        "product_name": "Test Product",
-        "url": "https://example.com/product",
-        "price": 99.99,
-        "regular_price": 129.99,
-        "sale_price": 99.99,
-    }
-    await db_manager.insert_price_data(initial_data)
+        # Verify the new price is in the database
+        price = await db_manager.get_latest_price(
+            "Test Product", "https://example.com/product"
+        )
+        assert price == 89.99
 
-    # Create new entry with same price
-    entries = [
-        {
+    @pytest.mark.asyncio
+    async def test_unchanged_price(self, db_manager: DatabaseManager) -> None:
+        """Test updating prices when price hasn't changed"""
+        # Insert initial data
+        initial_data = {
             "product_name": "Test Product",
             "url": "https://example.com/product",
-            "data": {"price": 99.99, "regular_price": 129.99, "sale_price": 99.99},
+            "price": 99.99,
+            "regular_price": 129.99,
+            "sale_price": 99.99,
         }
-    ]
+        await db_manager.insert_price_data(initial_data)
 
-    changed_urls = await db_manager.update_price_database(entries)
+        # Create new entry with same price
+        entries = [
+            {
+                "product_name": "Test Product",
+                "url": "https://example.com/product",
+                "data": {"price": 99.99, "regular_price": 129.99, "sale_price": 99.99},
+            }
+        ]
 
-    # Check that no URLs were reported as changed
-    assert len(changed_urls) == 0
+        changed_urls = await db_manager.update_price_database(entries)
+
+        # Check that no URLs were reported as changed
+        assert len(changed_urls) == 0
+
+    @pytest.mark.asyncio
+    async def test_error_entry(self, db_manager: DatabaseManager) -> None:
+        """Test updating prices with an error entry"""
+        entries = [
+            {
+                "product_name": "Test Product",
+                "url": "https://example.com/product",
+                "error": "Failed to fetch price",
+            }
+        ]
+
+        changed_urls = await db_manager.update_price_database(entries)
+
+        # Should return empty set as error entries are skipped
+        assert len(changed_urls) == 0
 
 
-@pytest.mark.asyncio
-async def test_update_price_database_error_entry(db_manager: DatabaseManager) -> None:
-    """Test updating prices with an error entry"""
-    entries = [
-        {
+class TestGetData:
+    @pytest.mark.asyncio
+    async def test_get_latest_price(self, db_manager: DatabaseManager) -> None:
+        """Test retrieving the latest price for a product URL"""
+        # Insert test data
+        product_name = "Test Product"
+        url = "https://example.com/product"
+
+        test_data = {
+            "product_name": product_name,
+            "url": url,
+            "price": 99.99,
+            "regular_price": 129.99,
+            "sale_price": 99.99,
+        }
+        await db_manager.insert_price_data(test_data)
+
+        await asyncio.sleep(1.5)
+
+        # Update with a new price
+        updated_data = {
+            "product_name": product_name,
+            "url": url,
+            "price": 89.99,
+            "regular_price": 129.99,
+            "sale_price": 89.99,
+        }
+        await db_manager.insert_price_data(updated_data)
+
+        # Get the latest price
+        latest_price = await db_manager.get_latest_price(
+            "Test Product", "https://example.com/product"
+        )
+
+        # Should return the most recent price
+        assert latest_price == 89.99
+
+        # Test cache hit
+        with patch.object(AsyncLRUCache, "get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = 79.99
+            price = await db_manager.get_latest_price(product_name, url)
+            assert price == 79.99
+            mock_get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_target_price(self, db_manager: DatabaseManager) -> None:
+        """Test retrieving target site price for a product"""
+        # Insert test data for target site
+        target_data = {
             "product_name": "Test Product",
-            "url": "https://example.com/product",
-            "error": "Failed to fetch price",
+            "url": "https://target-site.com/product",
+            "price": 109.99,
+            "regular_price": 129.99,
+            "sale_price": 109.99,
         }
-    ]
+        await db_manager.insert_price_data(target_data)
 
-    changed_urls = await db_manager.update_price_database(entries)
+        # Get the target price
+        target_price = await db_manager.get_target_price(
+            "Test Product", "target-site.com"
+        )
 
-    # Should return empty set as error entries are skipped
-    assert len(changed_urls) == 0
+        assert target_price == 109.99
 
+    @pytest.mark.asyncio
+    async def test_get_competitor_urls(self, db_manager: DatabaseManager) -> None:
+        """Test retrieving competitor URLs for a product"""
+        # Insert test data for multiple sites
+        target_data = {
+            "product_name": "Test Product",
+            "url": "https://target-site.com/product",
+            "price": 109.99,
+        }
+        await db_manager.insert_price_data(target_data)
 
-@pytest.mark.asyncio
-async def test_get_latest_price(db_manager: DatabaseManager) -> None:
-    """Test retrieving the latest price for a product URL"""
-    # Insert test data
-    product_name = "Test Product"
-    url = "https://example.com/product"
+        competitor1_data = {
+            "product_name": "Test Product",
+            "url": "https://competitor1.com/product",
+            "price": 99.99,
+        }
+        await db_manager.insert_price_data(competitor1_data)
 
-    test_data = {
-        "product_name": product_name,
-        "url": url,
-        "price": 99.99,
-        "regular_price": 129.99,
-        "sale_price": 99.99,
-    }
-    await db_manager.insert_price_data(test_data)
+        competitor2_data = {
+            "product_name": "Test Product",
+            "url": "https://competitor2.com/product",
+            "price": 89.99,
+        }
+        await db_manager.insert_price_data(competitor2_data)
 
-    await asyncio.sleep(1.5)
+        # Get competitor URLs
+        competitor_urls = await db_manager.get_competitor_urls(
+            "Test Product", "target-site.com"
+        )
 
-    # Update with a new price
-    updated_data = {
-        "product_name": product_name,
-        "url": url,
-        "price": 89.99,
-        "regular_price": 129.99,
-        "sale_price": 89.99,
-    }
-    await db_manager.insert_price_data(updated_data)
-
-    # Get the latest price
-    latest_price = await db_manager.get_latest_price(
-        "Test Product", "https://example.com/product"
-    )
-
-    # Should return the most recent price
-    assert latest_price == 89.99
-
-    # Test cache hit
-    with patch.object(AsyncLRUCache, "get", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = 79.99
-        price = await db_manager.get_latest_price(product_name, url)
-        assert price == 79.99
-        mock_get.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_get_target_price(db_manager: DatabaseManager) -> None:
-    """Test retrieving target site price for a product"""
-    # Insert test data for target site
-    target_data = {
-        "product_name": "Test Product",
-        "url": "https://target-site.com/product",
-        "price": 109.99,
-        "regular_price": 129.99,
-        "sale_price": 109.99,
-    }
-    await db_manager.insert_price_data(target_data)
-
-    # Get the target price
-    target_price = await db_manager.get_target_price("Test Product", "target-site.com")
-
-    assert target_price == 109.99
-
-
-@pytest.mark.asyncio
-async def test_get_competitor_urls(db_manager: DatabaseManager) -> None:
-    """Test retrieving competitor URLs for a product"""
-    # Insert test data for multiple sites
-    target_data = {
-        "product_name": "Test Product",
-        "url": "https://target-site.com/product",
-        "price": 109.99,
-    }
-    await db_manager.insert_price_data(target_data)
-
-    competitor1_data = {
-        "product_name": "Test Product",
-        "url": "https://competitor1.com/product",
-        "price": 99.99,
-    }
-    await db_manager.insert_price_data(competitor1_data)
-
-    competitor2_data = {
-        "product_name": "Test Product",
-        "url": "https://competitor2.com/product",
-        "price": 89.99,
-    }
-    await db_manager.insert_price_data(competitor2_data)
-
-    # Get competitor URLs
-    competitor_urls = await db_manager.get_competitor_urls(
-        "Test Product", "target-site.com"
-    )
-
-    assert len(competitor_urls) == 2
-    assert "https://competitor1.com/product" in competitor_urls
-    assert "https://competitor2.com/product" in competitor_urls
+        assert len(competitor_urls) == 2
+        assert "https://competitor1.com/product" in competitor_urls
+        assert "https://competitor2.com/product" in competitor_urls
 
 
 @pytest.mark.asyncio

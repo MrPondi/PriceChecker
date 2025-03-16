@@ -17,30 +17,29 @@ from src.models import (
 )
 
 
-class TestEnvVariables:
+class TestEnvVariables(TestCase):
     def test_valid_env_variables(self) -> None:
         """Test valid environment variables validation"""
         env = EnvVariables(consumer_key="key123", consumer_secret="secret456")
-        assert env.consumer_key == "key123"
-        assert env.consumer_secret == "secret456"
+        self.assertEqual(env.consumer_key, "key123")
+        self.assertEqual(env.consumer_secret, "secret456")
 
     def test_invalid_env_variables(self) -> None:
         """Test environment variables validation failure"""
-        with pytest.raises(ValidationError):
+        with self.assertRaises(ValidationError):
             EnvVariables(consumer_key="", consumer_secret="secret456")
-
-        with pytest.raises(ValidationError):
+        with self.assertRaises(ValidationError):
             EnvVariables(consumer_key="key123", consumer_secret="")
 
 
-class TestSelectors:
+class TestSelectors(TestCase):
     def test_selectors_with_values(self) -> None:
         selectors = Selectors(
             price=".price", regular_price=".regular-price", sale_price=".sale-price"
         )
-        assert selectors.price == ".price"
-        assert selectors.regular_price == ".regular-price"
-        assert selectors.sale_price == ".sale-price"
+        self.assertEqual(selectors.price, ".price")
+        self.assertEqual(selectors.regular_price, ".regular-price")
+        self.assertEqual(selectors.sale_price, ".sale-price")
 
     def test_selectors_get(self) -> None:
         """Test the get method of Selectors class"""
@@ -48,55 +47,61 @@ class TestSelectors:
         selectors1 = Selectors(
             price=".price", regular_price=".regular-price", sale_price=".sale-price"
         )
-        assert selectors1.get("price") == ".price"
-        assert selectors1.get("regular_price") == ".regular-price"
-        assert selectors1.get("sale_price") == ".sale-price"
+        self.assertEqual(selectors1.get("price"), ".price")
+        self.assertEqual(selectors1.get("regular_price"), ".regular-price")
+        self.assertEqual(selectors1.get("sale_price"), ".sale-price")
 
         # With some fields not set
         selectors2 = Selectors(price=".price")
-        assert selectors2.get("price") == ".price"
-        assert selectors2.get("regular_price") is None
-        assert selectors2.get("sale_price", "price") == "price"  # Default when missing
-        assert selectors2.get("non_existent", "custom_default") == "custom_default"
+        self.assertEqual(
+            selectors2.get("non_existent", "custom_default"), "custom_default"
+        )
+        self.assertEqual(selectors2.get("price"), ".price")
+        self.assertEqual(selectors2.get("sale_price", "price"), "price")
+        self.assertIsNone(selectors2.get("regular_price"))
 
 
-class TestSiteRules:
+class TestSiteRules(TestCase):
     def test_site_rules_defaults(self) -> None:
         rules = Site_Rules()
-        assert rules.text_contains == {}
-        assert rules.element_selector == {}
+        self.assertEqual(rules.text_contains, {})
+        self.assertEqual(rules.element_selector, {})
 
     def test_site_rules_with_values(self) -> None:
         rules = Site_Rules(
             text_contains={"out of stock": False, "available": True},
             element_selector={".discount": True, ".old-price": False},
         )
-        assert rules.text_contains == {"out of stock": False, "available": True}
-        assert rules.element_selector == {".discount": True, ".old-price": False}
+        self.assertEqual(
+            rules.text_contains, {"out of stock": False, "available": True}
+        )
+        self.assertEqual(
+            rules.element_selector, {".discount": True, ".old-price": False}
+        )
 
 
-class TestSiteBase:
+class TestSiteBase(TestCase):
     def test_normalize_domain(self) -> None:
         # Test with clean domain
         api_site = ApiSite(
             root_domain="example.com",
             env_variables=EnvVariables(consumer_key="key", consumer_secret="secret"),
         )
-        assert api_site.root_domain == "example.com"
+        self.assertEqual(api_site.root_domain, "example.com")
 
         # Test with URL
         api_site = ApiSite(
             root_domain="https://www.example.com/path",
             env_variables=EnvVariables(consumer_key="key", consumer_secret="secret"),
         )
-        assert api_site.root_domain == "example.com"
+        self.assertEqual(api_site.root_domain, "example.com")
 
         # Test with subdomain
         api_site = ApiSite(
             root_domain="sub.example.co.uk",
             env_variables=EnvVariables(consumer_key="key", consumer_secret="secret"),
         )
-        assert api_site.root_domain == "example.co.uk"
+        self.assertEqual(api_site.root_domain, "example.co.uk")
 
 
 class TestApiSite(TestCase):
